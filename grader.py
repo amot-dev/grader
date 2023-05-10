@@ -2,6 +2,8 @@ import os
 import sys
 import argparse
 import click
+from pathlib import Path
+from glob import glob
 from lxml import etree
 from fractions import Fraction
 
@@ -111,7 +113,45 @@ def remove_assignment(course_name, type_name, assignment_name):
     return
 
 
-def list(course_name, verbosity):
+def list_grades(course_name, verbose):
+    course_list = []
+    if course_name is None:
+        for file in glob(os.path.join(working_folder, "*.xml")):
+            course_list.append(file)
+        if not course_list:
+            sys.exit("Error: No courses found.")
+    else:
+        course_file = os.path.join(working_folder, course_name + ".xml")
+        if not os.path.exists(course_file):
+            sys.exit("Error: Course does not exist.")
+        course_list.append(course_file)
+        
+    for current_course in course_list:
+        course_grade = 0.0
+        type_grades = {}
+        course = etree.parse(current_course).getroot()
+        for current_type in course:
+            type_score = 0
+            type_total = 0
+            for current_assignment in current_type:
+                type_score += int(current_assignment.get("score"))
+                type_total += int(current_assignment.get("total"))
+            type_grade = 0.0
+            if (type_total != 0):
+                type_grade = type_score / type_total
+            course_grade += type_grade * float(current_type.get("weight"))
+            type_grades[current_type.get("name")] = type_grade
+        
+        print(Path(current_course).stem + " -> " + f"{course_grade:.0%}")
+        for current_type in course:
+            type_grade = type_grades[current_type.get("name")]
+            print("    " + current_type.get("name") + " -> " + f"{type_grade:.0%}")
+            if verbose:
+                for current_assignment in current_type:
+                    assignment_grade = 0.0
+                    if (int(current_assignment.get("total")) != 0):
+                        assignment_grade = int(current_assignment.get("score")) / int(current_assignment.get("total"))
+                    print("        " + current_assignment.get("name") + " -> " + f"{assignment_grade:.0%}")
     return
 
 
@@ -168,7 +208,7 @@ def main():
         else:
             remove_assignment(args.course, args.assignment_type, args.assignment)
     elif (args.action == "list"):
-        list(args.course, args.verbosity)
+        list_grades(args.course, args.verbose)
     return
     
 if __name__ == "__main__":
