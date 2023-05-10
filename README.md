@@ -1,2 +1,2 @@
 # Grader
-Tabulates graders for multiple classes. Customizable.
+Tabulates grades for multiple classes. Supports multiple assignment types with different weights.
